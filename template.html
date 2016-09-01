@@ -1,0 +1,37 @@
+<html>
+    <head>
+        <title>HearthSounds</title>
+    </head>
+    <body>
+    <h1>HearthSounds</h1>
+    <p><i>get hearthstone card sounds</i>
+
+        <form action="">
+            <label><a href="http://hearthhead.com/cards">Hearthhead Card URL</a></label>
+            <input type="text" name="url" style="width: 300px" value="${url}"></input>
+            <button type="submit">Submit</button>
+        </form>
+
+    % if card:
+    <div>
+        <h2>${card.name}</h2>
+        <img src="${card.image}" style="float: left; padding: 0 50px 50px 0">
+        <ul style="padding-top: 50px">
+        % for sound in sounds:
+            <li><a href="${sound['url']}">${sound['type']}</a>  <a style="font-size: 2em" onclick="this.firstChild.play()"><audio src="${sound['url']}"></audio><img width="16px" src="play.svg"></a></li>
+        % endfor
+        </ul>
+        </div>
+    % endif
+
+    % if error:
+        <div style="color: red">${error}</div>
+    % endif
+
+<div style="clear: left">
+    <p><a href="https://gist.github.com/mtimkovich/89f653224d85b566546949424bd509c6">Source code</a>
+    <p>by Max Timkovich
+    </div>
+
+    </body>
+</html>
