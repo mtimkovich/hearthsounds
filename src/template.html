@@ -17,7 +17,7 @@
         <h2>${card.name}</h2>
         <img src="${card.image}" style="float: left; padding: 0 50px 50px 0">
         <ul style="padding-top: 50px">
-        % for sound in sounds:
+        % for sound in card.sounds:
             <li><a href="${sound['url']}">${sound['type']}</a>  <a style="font-size: 2em" onclick="this.firstChild.play()"><audio src="${sound['url']}"></audio><img width="16px" src="play.svg"></a></li>
         % endfor
         </ul>
