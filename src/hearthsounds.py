@@ -60,7 +60,7 @@ class Card:
 form = cgi.FieldStorage()
 url = form.getvalue('url', '')
 
-config = yaml.load(open('/home/max/Python/db.yaml'))
+config = yaml.load(open('/home/conf/db.yaml'))
 db = MySQLdb.connect(**config)
 
 card_name = ''

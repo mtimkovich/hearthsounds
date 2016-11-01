@@ -1,6 +1,11 @@
 <html>
     <head>
-        <title>HearthSounds</title>
+        <title>HearthSounds
+
+        % if card.name:
+         - ${card.name}
+        % endif 
+        </title>
     </head>
     <body>
     <h1>HearthSounds</h1>
