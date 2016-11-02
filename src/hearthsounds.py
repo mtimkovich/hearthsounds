@@ -2,10 +2,9 @@
 import cgi
 import json
 from mako.template import Template
-import MySQLdb
+import sqlite3
 import re
 import requests
-import yaml
 
 print "Content-Type: text/html"
 print
@@ -22,7 +21,7 @@ class Card:
         self.BASE_URL = 'http://media.services.zam.com/v1/media/byName'
         self.card_id = card_id
         self.db = db
-        self.cursor = db.cursor(MySQLdb.cursors.DictCursor)
+        self.cursor = db.cursor()
 
     def from_json(self, j):
         self.name = j['name']
@@ -31,7 +30,7 @@ class Card:
         self.sounds = self.get_sounds(sound_json)
 
     def from_sql(self):
-        self.cursor.execute('select * from cards where card_id = %s limit 1', (self.card_id,))
+        self.cursor.execute('select * from cards where card_id = ? limit 1', (self.card_id,))
         row = self.cursor.fetchone()
 
         if row:
@@ -53,15 +52,15 @@ class Card:
         return sounds
 
     def insert(self):
-        self.cursor.execute('insert into cards (card_id, name, image, sounds) values (%s, %s, %s, %s)',
+        self.cursor.execute('insert into cards (card_id, name, image, sounds) values (?, ?, ?, ?)',
                             (self.card_id, self.name, self.image, json.dumps(self.sounds)))
         self.db.commit()
 
 form = cgi.FieldStorage()
 url = form.getvalue('url', '')
 
-config = yaml.load(open('/home/conf/db.yaml'))
-db = MySQLdb.connect(**config)
+db = sqlite3.connect('/home/protected/hearthsounds.db')
+db.row_factory = sqlite3.Row
 
 card_name = ''
 if url and verify_url(url):
