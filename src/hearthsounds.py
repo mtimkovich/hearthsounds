@@ -63,6 +63,8 @@ db = sqlite3.connect('/home/protected/hearthsounds.db')
 db.row_factory = sqlite3.Row
 
 card_name = ''
+error = ''
+
 if url and verify_url(url):
     if not url.startswith('http://'):
         url = 'http://' + url
@@ -72,25 +74,27 @@ if url and verify_url(url):
     exists = card.from_sql()
 
     if not exists:
-        r = requests.get(url)
-        html = r.text.encode('utf-8')
+        try:
+            r = requests.get(url)
+            html = r.text.encode('utf-8')
 
-        for line in html.splitlines():
-            if 'card:' in line:
-                line = line.replace('card:', '', 1)
-                j = json.loads(line)
-                card.from_json(j)
-                card.insert()
+            for line in html.splitlines():
+                if 'card:' in line:
+                    line = line.replace('card:', '', 1)
+                    j = json.loads(line)
+                    card.from_json(j)
+                    card.insert()
 
-                break
+                    break
 
+        except requests.ConnectionError:
+            error = 'Error connecting to Hearthhead'
+            card = None
 else:
     card = None
 
 db.close()
 
-
-error = ''
 if url and not verify_url(url):
     error = 'Invalid url provided'
 
