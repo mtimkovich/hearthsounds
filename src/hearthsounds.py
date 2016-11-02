@@ -60,6 +60,8 @@ db = sqlite3.connect('/home/protected/hearthsounds.db')
 db.row_factory = sqlite3.Row
 
 card_name = ''
+error = ''
+
 if url and verify_url(url):
     if not url.startswith('http://'):
         url = 'http://' + url
@@ -69,21 +71,23 @@ if url and verify_url(url):
     exists = card.from_sql()
 
     if not exists:
-        r = requests.get(url)
-        html = r.text.encode('utf-8')
-        card.from_html(html)
-        card.insert()
+        try:
+            r = requests.get(url)
+            html = r.text.encode('utf-8')
+            card.from_html(html)
+            card.insert()
+        except requests.ConnectionError:
+            error = 'Error connecting to Hearthpwn'
+            card = None
 
 else:
     card = None
 
 db.close()
 
-
-error = ''
 if url and not verify_url(url):
     error = 'Invalid url provided'
 
-print Template(filename='template_new.html').render(url=cgi.escape(url, True), 
+print Template(filename='template.html').render(url=cgi.escape(url, True), 
                                                 card=card,
                                                 error=error)
