@@ -6,7 +6,7 @@ create table cards (
     name text,
     image text,
     sounds text,
-    created datetime current_timestamp
+    created datetime default current_timestamp
 );
 
 drop table if exists searches;
@@ -15,8 +15,9 @@ create table searches (
     id integer primary key,
     query text,
     card_id text,
-    created datetime current_timestamp,
-    foreign key(card_id) references cards(card_id)
+    created datetime default current_timestamp,
+    foreign key(card_id) references cards(card_id),
+    unique (query, card_id)
 );
 
 drop index if exists query_idx;
