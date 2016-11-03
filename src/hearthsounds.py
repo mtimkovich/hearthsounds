@@ -118,6 +118,7 @@ error = ''
 cards = []
 
 if q:
+    q = q.lower()
     results, in_cache = search_hearthpwn(q, db)
 
     c = db.cursor()
