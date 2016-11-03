@@ -8,3 +8,12 @@ create table cards (
     sounds text,
     created datetime current_timestamp
 );
+
+drop table if exists searches;
+
+create table searches (
+    id integer primary key,
+    query text,
+    card_id text,
+    foreign key(card_id) references cards(card_id)
+);

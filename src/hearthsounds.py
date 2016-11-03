@@ -10,18 +10,57 @@ import requests
 print "Content-Type: text/html"
 print
 
-def verify_url(url):
-    return re.match(r'(http://)?(www\.)?hearthpwn\.com/cards/', url)
 
 def get_card_id(url):
     m = re.search('/cards/([^/]*)', url)
     return m.group(1)
 
+
+def search_hearthpwn(query, db):
+    c = db.cursor()
+    c.execute('select card_id from searches where query = ?', (query,))
+    cards = c.fetchall()
+    c.close()
+
+    if cards:
+        results = [r['card_id'] for r in cards]
+
+        return (results, True)
+
+    r = requests.get('http://www.hearthpwn.com/cards', params={'filter-name': query})
+    html = r.text
+    soup = BeautifulSoup(html, 'html.parser')
+    cards = soup.find('tbody').find_all('tr')
+
+    if cards[0].find('td', class_='no-results'):
+        return ([], True)
+
+    results = []
+    for card in cards:
+        card_id = card.find('td', class_='visual-details-cell').find('h3').find('a')['href']
+        card_id = get_card_id(card_id)
+        results.append(card_id)
+
+    return (results, False)
+
+
+def get_card(card_id, db):
+    card = Card(card_id, db)
+    exists = card.from_sql()
+
+    if not exists:
+        r = requests.get('http://www.hearthpwn.com/cards/' + card_id)
+        html = r.text.encode('utf-8')
+        card.from_html(html)
+        card.insert()
+
+    return card
+
+
 class Card:
     def __init__(self, card_id, db):
         self.card_id = card_id
         self.db = db
-        self.cursor = db.cursor()
 
     def from_html(self, html):
         soup = BeautifulSoup(html, 'html.parser')
@@ -36,58 +75,62 @@ class Card:
             self.sounds.append({'id': id, 'src': src})
 
     def from_sql(self):
-        self.cursor.execute('select * from cards where card_id = ? limit 1', (self.card_id,))
-        row = self.cursor.fetchone()
+        self.c = self.db.cursor()
+        self.c.execute('select * from cards where card_id = ? limit 1', (self.card_id,))
+        row = self.c.fetchone()
 
         if row:
             self.card_id = row['card_id']
             self.name = row['name']
             self.image = row['image']
             self.sounds = json.loads(row['sounds'])
+            self.c.close()
             return True
 
+        self.c.close()
         return False
 
     def insert(self):
-        self.cursor.execute('insert into cards (card_id, name, image, sounds) values (?, ?, ?, ?)',
-                            (self.card_id, self.name, self.image, json.dumps(self.sounds)))
+        self.c = self.db.cursor()
+        self.c.execute('insert into cards (card_id, name, image, sounds) values (?, ?, ?, ?)',
+                       (self.card_id, self.name, self.image, json.dumps(self.sounds)))
         self.db.commit()
+        self.c.close()
+
+
+def connect(db_file):
+    db = sqlite3.connect(db_file)
+    db.row_factory = sqlite3.Row
+    c = db.cursor()
+    c.execute('pragma foreign_keys = ON')
+    c.close()
+
+    return db
+
 
 form = cgi.FieldStorage()
-url = form.getvalue('url', '')
+q = form.getvalue('q', '')
 
-db = sqlite3.connect('/home/protected/hearthsounds.db')
-db.row_factory = sqlite3.Row
+db = connect('/home/protected/hearthsounds.db')
 
 card_name = ''
 error = ''
+cards = []
 
-if url and verify_url(url):
-    if not url.startswith('http://'):
-        url = 'http://' + url
+if q:
+    results, in_cache = search_hearthpwn(q, db)
 
-    card_id = get_card_id(url)
-    card = Card(card_id, db)
-    exists = card.from_sql()
+    c = db.cursor()
+    for card_id in results:
+        cards.append(get_card(card_id, db))
 
-    if not exists:
-        try:
-            r = requests.get(url)
-            html = r.text.encode('utf-8')
-            card.from_html(html)
-            card.insert()
-        except requests.ConnectionError:
-            error = 'Error connecting to Hearthpwn'
-            card = None
+        if results and not in_cache:
+            c.execute('insert into searches (query, card_id) values (?, ?)', (q, card_id))
+            db.commit()
+    c.close()
 
-else:
-    card = None
 
 db.close()
 
-if url and not verify_url(url):
-    error = 'Invalid url provided'
-
-print Template(filename='template.html').render(url=cgi.escape(url, True), 
-                                                card=card,
-                                                error=error)
+print Template(filename='template.html').render(q=cgi.escape(q, True),
+                                                cards=cards)
