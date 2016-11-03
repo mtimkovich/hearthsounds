@@ -85,7 +85,14 @@ class Card:
             self.card_id = row['card_id']
             self.name = row['name']
             self.image = row['image']
-            self.sounds = json.loads(row['sounds'])
+
+            self.c.execute('select name, src from sounds where card_id = ?', (self.card_id,))
+
+            self.sounds = []
+
+            for row in self.c:
+                self.sounds.append({'id': row['name'], 'src': row['src']})
+
             self.c.close()
             return True
 
@@ -94,8 +101,11 @@ class Card:
 
     def insert(self):
         self.c = self.db.cursor()
-        self.c.execute('insert into cards (card_id, name, image, sounds) values (?, ?, ?, ?)',
-                       (self.card_id, self.name, self.image, json.dumps(self.sounds)))
+        self.c.execute('insert into cards (card_id, name, image) values (?, ?, ?)',
+                       (self.card_id, self.name, self.image))
+        for sound in self.sounds:
+            self.c.execute('insert into sounds (card_id, name, src) values (?, ?, ?)',
+                           (self.card_id, sound['id'], sound['src']))
         self.db.commit()
         self.c.close()
 
