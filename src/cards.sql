@@ -15,5 +15,9 @@ create table searches (
     id integer primary key,
     query text,
     card_id text,
+    created datetime current_timestamp,
     foreign key(card_id) references cards(card_id)
 );
+
+drop index if exists query_idx;
+create index query_idx on searches(query);

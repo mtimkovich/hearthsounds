@@ -27,7 +27,8 @@ def search_hearthpwn(query, db):
 
         return (results, True)
 
-    r = requests.get('http://www.hearthpwn.com/cards', params={'filter-name': query})
+    r = requests.get('http://www.hearthpwn.com/cards/minion',
+                     params={'filter-name': query, 'filter-premium': 1})
     html = r.text
     soup = BeautifulSoup(html, 'html.parser')
     cards = soup.find('tbody').find_all('tr')
@@ -37,8 +38,9 @@ def search_hearthpwn(query, db):
 
     results = []
     for card in cards:
-        card_id = card.find('td', class_='visual-details-cell').find('h3').find('a')['href']
-        card_id = get_card_id(card_id)
+        details = card.find('td', class_='visual-details-cell')
+        card_url = details.find('h3').find('a')['href']
+        card_id = get_card_id(card_url)
         results.append(card_id)
 
     return (results, False)
@@ -118,7 +120,7 @@ error = ''
 cards = []
 
 if q:
-    q = q.lower()
+    q = q.lower().strip()
     results, in_cache = search_hearthpwn(q, db)
 
     c = db.cursor()
