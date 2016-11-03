@@ -5,8 +5,17 @@ create table cards (
     card_id text unique,
     name text,
     image text,
-    sounds text,
     created datetime default current_timestamp
+);
+
+drop table if exists sounds;
+
+create table sounds (
+    id integer primary key,
+    card_id text,
+    name text,
+    src text,
+    foreign key(card_id) references cards(card_id)
 );
 
 drop table if exists searches;
