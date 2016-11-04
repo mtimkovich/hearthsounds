@@ -16,11 +16,9 @@ def get_card_id(url):
     return m.group(1)
 
 
-def search_hearthpwn(query, db):
-    c = db.cursor()
+def search_hearthpwn(query, c):
     c.execute('select card_id from searches where query = ?', (query,))
     cards = c.fetchall()
-    c.close()
 
     if cards:
         results = [r['card_id'] for r in cards]
@@ -46,8 +44,8 @@ def search_hearthpwn(query, db):
     return (results, False)
 
 
-def get_card(card_id, db):
-    card = Card(card_id, db)
+def get_card(card_id, c):
+    card = Card(card_id, c)
     exists = card.from_sql()
 
     if not exists:
@@ -60,9 +58,9 @@ def get_card(card_id, db):
 
 
 class Card:
-    def __init__(self, card_id, db):
+    def __init__(self, card_id, c):
         self.card_id = card_id
-        self.db = db
+        self.c = c
 
     def from_html(self, html):
         soup = BeautifulSoup(html, 'html.parser')
@@ -77,7 +75,6 @@ class Card:
             self.sounds.append({'id': id, 'src': src})
 
     def from_sql(self):
-        self.c = self.db.cursor()
         self.c.execute('select * from cards where card_id = ? limit 1', (self.card_id,))
         row = self.c.fetchone()
 
@@ -93,31 +90,16 @@ class Card:
             for row in self.c:
                 self.sounds.append({'id': row['name'], 'src': row['src']})
 
-            self.c.close()
             return True
 
-        self.c.close()
         return False
 
     def insert(self):
-        self.c = self.db.cursor()
         self.c.execute('insert into cards (card_id, name, image) values (?, ?, ?)',
                        (self.card_id, self.name, self.image))
         for sound in self.sounds:
             self.c.execute('insert into sounds (card_id, name, src) values (?, ?, ?)',
                            (self.card_id, sound['id'], sound['src']))
-        self.db.commit()
-        self.c.close()
-
-
-def connect(db_file):
-    db = sqlite3.connect(db_file)
-    db.row_factory = sqlite3.Row
-    c = db.cursor()
-    c.execute('pragma foreign_keys = ON')
-    c.close()
-
-    return db
 
 
 form = cgi.FieldStorage()
@@ -131,15 +113,15 @@ cards = []
 
 if q:
     q = q.lower().strip()
-    results, in_cache = search_hearthpwn(q, db)
-
     c = db.cursor()
+    results, in_cache = search_hearthpwn(q, c)
+
     for card_id in results:
-        cards.append(get_card(card_id, db))
+        cards.append(get_card(card_id, c))
 
         if results and not in_cache:
             c.execute('insert into searches (query, card_id) values (?, ?)', (q, card_id))
-            db.commit()
+            c.commit()
     c.close()
 
 

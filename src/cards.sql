@@ -15,8 +15,7 @@ create table sounds (
     card_id text,
     name text,
     src text,
-    foreign key(card_id) references cards(card_id),
-    unique (name, src)
+    foreign key(card_id) references cards(card_id)
 );
 
 drop table if exists searches;
