@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}HearthSounds
+
+{% if q %}
+- {{q}}
+{% endif %}
+{% endblock %}
+{% block header %}<a href="{{url_for('hs.index')}}">HearthSounds</a>{% endblock %}
+{% block content %}
+<p class="lead">Get hearthstone card sounds</p>
+
+<form>
+    <div class="form-group">
+        <label>Card Name</label>
+        <div class="input-group">
+            <input type="text" name="q" class="form-control" placeholder="Search..." value="{{q}}"></input>
+            <span class="input-group-btn">
+                <button type="submit" class="btn btn-primary">Go!</button>
+            </span>
+        </div>
+    </div>
+</form>
+
+{% for card in cards %}
+<div class="list-group">
+    <li class="list-group-item">
+        <h2>{{card.name}}</h2>
+        <div class="row">
+            <div class="col-sm-6">
+                <img src="{{card.image}}">
+            </div>
+            <div class="col-sm-6" style="margin-top: 40px">
+                <div class="list-group">
+                    {% for s in card.sounds %}
+                    <a class="list-group-item" onclick="return playAudio(this);" href="{{s['src']}}">{{s['id']}}
+                        <span class="pull-right">
+                            <span class="btn btn-xs btn-default" onclick="window.location.href=this.parentElement.parentElement.href;">
+                                <span class="glyphicon glyphicon-download" aria-hidden="true"></span>
+                            </span>
+                        </span>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </li>
+</div>
+{% endfor %}
+
+<script>
+function playAudio(link) {
+    var a = new Audio(link.href);
+    a.play();
+
+    return false;
+}
+</script>
+
+<div style="clear: left">
+    <p><a href="https://github.com/mtimkovich/maxtimkovich.com/tree/master/src/hearthsounds">Source code</a>
+    <p>by Max Timkovich
+</div>
+{% endblock %}
+

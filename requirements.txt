@@ -1,0 +1,17 @@
+beautifulsoup4
+bs4
+certifi
+chardet
+click
+Flask
+fudge
+idna
+itsdangerous
+Jinja2
+MarkupSafe
+requests
+simplejson
+six
+update-checker
+urllib3
+Werkzeug
