@@ -33,11 +33,6 @@
                 <div class="list-group">
                     {% for s in card.sounds %}
                     <a class="list-group-item" onclick="return playAudio(this);" href="{{s['src']}}">{{s['id']}}
-                        <span class="pull-right">
-                            <span class="btn btn-xs btn-default" onclick="window.location.href=this.parentElement.parentElement.href;">
-                                <span class="glyphicon glyphicon-download" aria-hidden="true"></span>
-                            </span>
-                        </span>
                     </a>
                     {% endfor %}
                 </div>
@@ -60,5 +55,7 @@ function playAudio(link) {
     <p><a href="https://github.com/mtimkovich/hearthsounds">Source code</a>
     <p>by Max Timkovich
 </div>
+
+<p><i>Sorry, but HearthPwn doesn't have spell sound effects</i></p>
 {% endblock %}
 

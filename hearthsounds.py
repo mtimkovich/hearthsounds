@@ -29,7 +29,7 @@ class Card:
 
 
 def search_hearthpwn(query):
-    r = requests.get('http://www.hearthpwn.com/cards/minion',
+    r = requests.get('http://www.hearthpwn.com/cards',
                      params={'filter-name': query, 'filter-premium': 1})
 
     html = r.text
