@@ -29,15 +29,22 @@ class Card:
 
 
 def search_hearthpwn(query):
-    r = requests.get('http://www.hearthpwn.com/cards',
-                     params={'filter-name': query, 'filter-premium': 1})
+    # 3 is heroes, 11 is dk heroes, 4 is minions
+    cards = []
+    for type in [3, 4, 11]: 
+        r = requests.get('http://www.hearthpwn.com/cards',
+                         params={'filter-name': query,
+                                 'filter-type': type,
+                                 'filter-premium': 1})
 
-    html = r.text
-    soup = BeautifulSoup(html, 'html.parser')
-    cards = soup.find('tbody').find_all('tr')
+        html = r.text
+        soup = BeautifulSoup(html, 'html.parser')
+        table = soup.find('tbody').find_all('tr')
 
-    if cards[0].find('td', class_='no-results'):
-        return []
+        if table[0].find('td', class_='no-results'):
+            table = []
+
+        cards += table
 
     results = []
     for card in cards:
