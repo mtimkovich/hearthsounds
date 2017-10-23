@@ -28,14 +28,18 @@ class Card:
             self.sounds.append({'id': id, 'src': src})
 
 
-def search_hearthpwn(query):
-    # 3 is heroes, 11 is dk heroes, 4 is minions
+def search_hearthpwn(query, token):
     cards = []
+
+    # 3 is heroes, 4 is minions, 11 is dk heroes
     for type in [3, 4, 11]: 
-        r = requests.get('http://www.hearthpwn.com/cards',
-                         params={'filter-name': query,
-                                 'filter-type': type,
-                                 'filter-premium': 1})
+        params = {'filter-name': query,
+                  'filter-type': type}
+
+        if not token:
+            params['filter-premium'] = 1
+
+        r = requests.get('http://www.hearthpwn.com/cards', params=params)
 
         html = r.text
         soup = BeautifulSoup(html, 'html.parser')
@@ -63,17 +67,18 @@ def dotpy():
 @hearthsounds.route('/hearthsounds')
 def index():
     q = request.args.get('q', '')
+    token = int(request.args.get('token', 0))
 
     cards = []
 
     if q:
         q = q.strip()
         try:
-            results = search_hearthpwn(q)
+            results = search_hearthpwn(q, token)
 
             for card_id in results:
                 cards.append(Card(card_id))
         except RequestException:
             return 'hearthpwn appears to be down'
 
-    return render_template('template.html', q=q, cards=cards)
+    return render_template('template.html', q=q, token=token, cards=cards)

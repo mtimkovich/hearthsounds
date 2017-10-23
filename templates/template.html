@@ -19,6 +19,13 @@
             </span>
         </div>
     </div>
+
+    <div class="form-check form-check-inline">
+        <label class="form-check-label">
+            <input class="form-check-input" name="token" type="checkbox" value=1 {{'checked' if token else ''}}>
+            Include tokens and uncollectable cards
+        </label>
+    </div>
 </form>
 
 {% for card in cards %}
