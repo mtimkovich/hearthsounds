@@ -31,7 +31,7 @@
             </div>
             <div class="col-sm-6" style="margin-top: 40px">
                 <div class="list-group">
-                    {% for name, url in card.sounds.items() %}
+                    {% for name, url in card.sounds_output() %}
                     <a class="list-group-item" onclick="return playAudio(this);" href="{{url}}">{{name}}
                     </a>
                     {% endfor %}

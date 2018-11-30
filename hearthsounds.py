@@ -66,6 +66,18 @@ class Card:
             return True
         return False
 
+    def _sound_sort(self, d):
+        """Order the sounds Play > Attack > Trigger > Death and then numbers."""
+        alphabet = 'PATD'
+        try:
+            index = alphabet.index(d[0][0])
+        except ValueError:
+            index = len(alphabet)
+        return index, d[0]
+
+    def sounds_output(self):
+        return sorted(self.sounds.items(), key=self._sound_sort)
+
 
 @hearthsounds.route('/hearthsounds.py')
 def dotpy():
@@ -78,8 +90,8 @@ def index():
 
     # Access Hearthstone API.
     search = urllib.parse.quote(q)
-    headers = {'X-Mashape-Key': current_app.config['MASHAPE_KEY']}
-    resp = requests.get(current_app.config['API_ENDPOINT'] + search,
+    headers = {'X-Mashape-Key': current_app.config['HS_MASHAPE_KEY']}
+    resp = requests.get(current_app.config['HS_API_ENDPOINT'] + search,
                         headers=headers)
     if resp.status_code != 200:
         return render_template('template.html', q=q, cards=cards)
@@ -87,7 +99,7 @@ def index():
 
     # Setup gcloud client.
     storage_client = storage.Client()
-    bucket = storage_client.get_bucket(current_app.config['BUCKET'])
+    bucket = storage_client.get_bucket(current_app.config['HS_BUCKET'])
 
     if q:
         for card in results:
