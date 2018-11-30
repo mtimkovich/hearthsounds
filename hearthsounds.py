@@ -1,63 +1,70 @@
 from flask import Flask, Blueprint, request, render_template, \
-                  redirect, url_for
+                  redirect, url_for, current_app
 
-from bs4 import BeautifulSoup
+from google.cloud import storage
+import os
 import re
 import requests
-from requests import RequestException
+import urllib.parse
 
 hearthsounds = Blueprint('hs', __name__, template_folder='templates',
                          static_folder='static', static_url_path='/static/hs')
 
 
 class Card:
-    def __init__(self, card_id):
-        self.card_id = card_id
-        r = requests.get('http://www.hearthpwn.com/cards/' + self.card_id)
-        html = r.text
+    def __init__(self, data):
+        self.id = data.get('cardId')
+        self.name = data.get('name')
+        self.img = data.get('img')
+        self.type = data.get('type')
+        self.collectable = data.get('collectible')
 
-        soup = BeautifulSoup(html, 'html.parser')
-        self.name = soup.find('h2').text
-        self.image = soup.find('img', class_='hscard-static')['src']
-        audio = soup.find_all('audio')
-        self.sounds = []
-        for a in audio:
-            id = a['id'].replace('sound', '').replace('1', '')
-            src = a['src']
+        self.sounds = {}
+        self.SOUND_TYPES = [
+            'play',
+            'attack',
+            'death',
+            'trigger',
+            'customsummon'
+        ]
 
-            self.sounds.append({'id': id, 'src': src})
+    def search_name(self):
+        """The name used when searching the sound files."""
+        return self.name.replace(' ', '')
 
+    def find_sounds(self, bucket):
+        prefixes = [self.search_name(), 'VO_{}_'.format(self.id), self.id]
+        for prefix in prefixes:
+            for blob in bucket.list_blobs(prefix=prefix):
+                self.add_sound(blob)
 
-def search_hearthpwn(query, token):
-    cards = []
+    def add_sound(self, blob):
+        match = False
+        for type in self.SOUND_TYPES:
+            if type in blob.name.lower():
+                if type == 'customsummon':
+                    type = 'play'
+                type = type.capitalize()
+                n = 1
+                while True:
+                    if n == 1:
+                        type_str = type
+                    else:
+                        type_str = '{} {}'.format(type, n)
 
-    # 3 is heroes, 4 is minions, 11 is dk heroes
-    for type in [3, 4, 11]: 
-        params = {'filter-name': query,
-                  'filter-type': type}
+                    if type_str not in self.sounds:
+                        self.sounds[type_str] = blob.public_url
+                        match = True
+                        break
+                    n += 1
+        if not match:
+            current_app.logger.warning('UNMATCHED: {}'.format(blob.name))
 
-        if not token:
-            params['filter-premium'] = 1
-
-        r = requests.get('http://www.hearthpwn.com/cards', params=params)
-
-        html = r.text
-        soup = BeautifulSoup(html, 'html.parser')
-        table = soup.find('tbody').find_all('tr')
-
-        if table[0].find('td', class_='no-results'):
-            table = []
-
-        cards += table
-
-    results = []
-    for card in cards:
-        details = card.find('td', class_='visual-details-cell')
-        card_url = details.find('h3').find('a')['href']
-        card_id = re.search('/cards/([^/]*)', card_url).group(1)
-        results.append(card_id)
-
-    return results
+    def skip(self):
+        if self.type not in ['Minion'] or not self.collectable:
+            current_app.logger.info('Skipping: {}'.format(self.name))
+            return True
+        return False
 
 
 @hearthsounds.route('/hearthsounds.py')
@@ -67,18 +74,29 @@ def dotpy():
 @hearthsounds.route('/hearthsounds')
 def index():
     q = request.args.get('q', '')
-    token = int(request.args.get('token', 0))
-
     cards = []
 
+    # Access Hearthstone API.
+    search = urllib.parse.quote(q)
+    headers = {'X-Mashape-Key': current_app.config['MASHAPE_KEY']}
+    resp = requests.get(current_app.config['API_ENDPOINT'] + search,
+                        headers=headers)
+    if resp.status_code != 200:
+        return render_template('template.html', q=q, cards=cards)
+    results = resp.json()
+
+    # Setup gcloud client.
+    storage_client = storage.Client()
+    bucket = storage_client.get_bucket(current_app.config['BUCKET'])
+
     if q:
-        q = q.strip()
-        try:
-            results = search_hearthpwn(q, token)
+        for card in results:
+            c = Card(card)
 
-            for card_id in results:
-                cards.append(Card(card_id))
-        except RequestException:
-            return 'hearthpwn appears to be down'
+            if c.skip():
+                continue
 
-    return render_template('template.html', q=q, token=token, cards=cards)
+            c.find_sounds(bucket)
+            cards.append(c)
+
+    return render_template('template.html', q=q, cards=cards)

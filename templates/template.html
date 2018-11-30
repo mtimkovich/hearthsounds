@@ -19,13 +19,6 @@
             </span>
         </div>
     </div>
-
-    <div class="form-check form-check-inline">
-        <label class="form-check-label">
-            <input class="form-check-input" name="token" type="checkbox" value=1 {{'checked' if token else ''}}>
-            Include tokens and uncollectable cards
-        </label>
-    </div>
 </form>
 
 {% for card in cards %}
@@ -34,12 +27,12 @@
         <h2>{{card.name}}</h2>
         <div class="row">
             <div class="col-sm-6">
-                <img src="{{card.image}}">
+                <img src="{{card.img}}">
             </div>
             <div class="col-sm-6" style="margin-top: 40px">
                 <div class="list-group">
-                    {% for s in card.sounds %}
-                    <a class="list-group-item" onclick="return playAudio(this);" href="{{s['src']}}">{{s['id']}}
+                    {% for name, url in card.sounds.items() %}
+                    <a class="list-group-item" onclick="return playAudio(this);" href="{{url}}">{{name}}
                     </a>
                     {% endfor %}
                 </div>
@@ -63,6 +56,5 @@ function playAudio(link) {
     <p>by Max Timkovich
 </div>
 
-<p><i>Sorry, but HearthPwn doesn't have spell sound effects</i></p>
 {% endblock %}
 
