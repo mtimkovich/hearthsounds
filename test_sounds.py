@@ -1,30 +1,26 @@
 from google.cloud import storage
+import json
 import pytest
 import requests
 import urllib
-import yaml
 
 import hearthsounds
 
-def card_search(name):
-    with open('config.yml') as f:
-        conf = yaml.load(f)
 
-    # Access Hearthstone API.
-    search = urllib.parse.quote(name)
-    headers = {'X-Mashape-Key': conf['MASHAPE_KEY']}
-    resp = requests.get(conf['API_ENDPOINT'] + search, headers=headers)
-    cards = resp.json()
-    return cards
-
-
-@pytest.fixture(scope='module')
+@pytest.fixture(scope='session')
 def bucket():
     # Setup gcloud client.
     storage_client = storage.Client()
     bucket = storage_client.get_bucket('hearthsounds')
 
     yield bucket
+
+@pytest.fixture(scope='session')
+def results():
+    with open('cards.json') as f:
+        results = json.load(f)
+
+    yield results
 
 
 @pytest.mark.parametrize('name,num', [
@@ -35,17 +31,13 @@ def bucket():
     # The lich king sounds have ID ICC_239 for some reason.
     ('lich king', 3),
     ('tirion', 3),
+    ('al akir', 3),
+    ('dr boom', 5),
 ])
-def test_find_sounds(bucket, name, num):
+def test_find_sounds(name, num, bucket, results):
     """Verify that card search returns the correct amount of files."""
-    cards = card_search(name)
 
-    for card in cards:
-        c = hearthsounds.Card(card)
+    cards = hearthsounds.card_search(name, results, bucket)
 
-        if c.skip():
-            continue
-
-        c.find_sounds(bucket)
-
-        assert len(c.sounds) == num
+    assert len(cards) == 1
+    assert len(cards[0].sounds) == num

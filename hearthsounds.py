@@ -2,10 +2,10 @@ from flask import Flask, Blueprint, request, render_template, \
                   redirect, url_for, current_app
 
 from google.cloud import storage
+import json
 import logging
 import os
 import re
-import requests
 import urllib.parse
 
 hearthsounds = Blueprint('hs', __name__, template_folder='templates',
@@ -14,9 +14,8 @@ hearthsounds = Blueprint('hs', __name__, template_folder='templates',
 
 class Card:
     def __init__(self, data):
-        self.id = data.get('cardId')
+        self.id = data.get('id')
         self.name = data.get('name')
-        self.img = data.get('img')
         self.type = data.get('type')
         self.collectable = data.get('collectible')
         self.rarity = data.get('rarity')
@@ -31,6 +30,10 @@ class Card:
             'stinger',
         ]
 
+    def img(self):
+        return 'https://media.services.zam.com/v1/media/byName/hs/cards/enus/{}.png'.format(self.id)
+
+
     def search_name(self):
         """The name used when searching the sound files."""
         return self.name.replace(' ', '')
@@ -43,7 +46,7 @@ class Card:
 
         # Legendary cards have stingers that accompany the voice line.
         # TODO: Search for group stingers e.g. Alliance.
-        if self.rarity == 'Legendary':
+        if self.rarity == 'LEGENDARY':
             pattern = re.compile(self.name.replace(' ', '_?'))
             for blob in bucket.list_blobs(prefix='Pegasus_'):
                 if pattern.search(blob.name):
@@ -71,7 +74,7 @@ class Card:
         current_app.logger.warning('UNMATCHED: {}'.format(blob.name))
 
     def skip(self):
-        if self.type not in ['Minion'] or not self.collectable:
+        if self.type not in ['MINION'] or not self.collectable:
             # logging.info('Skipping: {}'.format(self.name))
             current_app.logger.info('Skipping: {}'.format(self.name))
             return True
@@ -89,6 +92,28 @@ class Card:
     def sounds_output(self):
         return sorted(self.sounds.items(), key=self._sound_sort)
 
+def search_pattern(search):
+    # replace special characters with '.*'
+    search = re.sub('[^a-z0-9]', '.*', search, re.I)
+    return re.compile(search, re.I)
+
+
+def card_search(query, results, bucket):
+    cards = []
+    pattern = search_pattern(query)
+
+    for card in results:
+        if not pattern.search(card.get('name', '')):
+            continue
+
+        c = Card(card)
+
+        if c.skip():
+            continue
+
+        c.find_sounds(bucket)
+        cards.append(c)
+    return cards
 
 @hearthsounds.route('/hearthsounds.py')
 def dotpy():
@@ -97,29 +122,15 @@ def dotpy():
 @hearthsounds.route('/hearthsounds')
 def index():
     q = request.args.get('q', '')
-    cards = []
-
-    # Access Hearthstone API.
-    search = urllib.parse.quote(q)
-    headers = {'X-Mashape-Key': current_app.config['HS_MASHAPE_KEY']}
-    resp = requests.get(current_app.config['HS_API_ENDPOINT'] + search,
-                        headers=headers)
-    if resp.status_code != 200:
-        return render_template('template.html', q=q, cards=cards)
-    results = resp.json()
 
     # Setup gcloud client.
     storage_client = storage.Client()
     bucket = storage_client.get_bucket(current_app.config['HS_BUCKET'])
 
+    with open('cards.json') as f:
+        results = json.load(f)
+
     if q:
-        for card in results:
-            c = Card(card)
-
-            if c.skip():
-                continue
-
-            c.find_sounds(bucket)
-            cards.append(c)
+        cards = card_search(q, results, bucket)
 
     return render_template('template.html', q=q, cards=cards)
