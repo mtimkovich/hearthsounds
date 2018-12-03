@@ -7,7 +7,7 @@
 {% endblock %}
 {% block header %}<a href="{{url_for('hs.index')}}">HearthSounds</a>{% endblock %}
 {% block content %}
-<p class="lead">Get hearthstone card sounds. *Now with sounds from <em>The Boomsday Project</em>!*</p>
+<p class="lead">Get hearthstone card sounds. <span class="bg-warning">Now with sounds from <em>The Boomsday Project</em>!</span></p>
 
 <form>
     <div class="form-group">
@@ -54,6 +54,7 @@ function playAudio(link) {
 <div style="clear: left">
     <p><a href="https://github.com/mtimkovich/hearthsounds">Source code</a>
     <p>by Max Timkovich
+    <p>Bug or feature request? <a href="https://github.com/mtimkovich/hearthsounds/issues">Create an issue on GitHub!</a></p>
 </div>
 
 {% endblock %}
