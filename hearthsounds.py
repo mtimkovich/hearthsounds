@@ -122,12 +122,13 @@ def dotpy():
 @hearthsounds.route('/hearthsounds')
 def index():
     q = request.args.get('q', '')
+    cards = []
 
     # Setup gcloud client.
     storage_client = storage.Client()
     bucket = storage_client.get_bucket(current_app.config['HS_BUCKET'])
 
-    with open('cards.json') as f:
+    with open('/home/protected/maxtimkovich.com/src/hearthsounds/cards.json') as f:
         results = json.load(f)
 
     if q:
