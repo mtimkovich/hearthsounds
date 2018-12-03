@@ -2,6 +2,7 @@ from flask import Flask, Blueprint, request, render_template, \
                   redirect, url_for, current_app
 
 from google.cloud import storage
+import logging
 import os
 import re
 import requests
@@ -18,6 +19,7 @@ class Card:
         self.img = data.get('img')
         self.type = data.get('type')
         self.collectable = data.get('collectible')
+        self.rarity = data.get('rarity')
 
         self.sounds = {}
         self.SOUND_TYPES = [
@@ -25,7 +27,8 @@ class Card:
             'attack',
             'death',
             'trigger',
-            'customsummon'
+            'customsummon',
+            'stinger',
         ]
 
     def search_name(self):
@@ -33,16 +36,23 @@ class Card:
         return self.name.replace(' ', '')
 
     def find_sounds(self, bucket):
-        prefixes = [self.search_name(), 'VO_{}_'.format(self.id), self.id]
+        prefixes = ['VO_{}_'.format(self.id), self.id, self.search_name()]
         for prefix in prefixes:
             for blob in bucket.list_blobs(prefix=prefix):
                 self.add_sound(blob)
 
+        # Legendary cards have stingers that accompany the voice line.
+        # TODO: Search for group stingers e.g. Alliance.
+        if self.rarity == 'Legendary':
+            pattern = re.compile(self.name.replace(' ', '_?'))
+            for blob in bucket.list_blobs(prefix='Pegasus_'):
+                if pattern.search(blob.name):
+                    self.add_sound(blob)
+
     def add_sound(self, blob):
-        match = False
         for type in self.SOUND_TYPES:
             if type in blob.name.lower():
-                if type == 'customsummon':
+                if type == ['customsummon', 'stinger']:
                     type = 'play'
                 type = type.capitalize()
                 n = 1
@@ -54,14 +64,15 @@ class Card:
 
                     if type_str not in self.sounds:
                         self.sounds[type_str] = blob.public_url
-                        match = True
-                        break
+                        return
                     n += 1
-        if not match:
-            current_app.logger.warning('UNMATCHED: {}'.format(blob.name))
+
+        # logging.warning('UNMATCHED: {}'.format(blob.name))
+        current_app.logger.warning('UNMATCHED: {}'.format(blob.name))
 
     def skip(self):
         if self.type not in ['Minion'] or not self.collectable:
+            # logging.info('Skipping: {}'.format(self.name))
             current_app.logger.info('Skipping: {}'.format(self.name))
             return True
         return False
