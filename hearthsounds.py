@@ -52,7 +52,7 @@ class Card:
     def add_sound(self, blob):
         for type in self.SOUND_TYPES:
             if type in blob.name.lower():
-                if type == ['customsummon', 'stinger']:
+                if type in ['customsummon', 'stinger']:
                     type = 'play'
                 type = type.capitalize()
                 n = 1
