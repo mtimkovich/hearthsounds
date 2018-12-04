@@ -37,25 +37,20 @@ class Card:
         return ('https://media.services.zam.com/v1/media/byName/'
                 'hs/cards/enus/{}.png'.format(self.id))
 
+    def sound_url(self, file_name):
+        return self.URL_BASE + file_name
+
     def search_name(self):
         """The name used when searching the sound files."""
         return self.name.replace(' ', '')
 
     def find_sounds(self, db):
-        # TODO: add some deduping.
-        query = 'select * from sounds where file_name match ?'
-        prefixes = ['VO_{}_'.format(self.id), self.id, self.search_name()]
-        for prefix in prefixes:
-            prefix = '^{}*'.format(prefix)
-            for row in db.execute(query, (prefix,)):
-                self.add_sound(row[0])
-
-        # Legendary cards have stingers that accompany the voice line.
-        # TODO: Search for group stingers e.g. Alliance.
-        if self.rarity == 'LEGENDARY':
-            pattern = re.compile(self.name.replace(' ', '_?'))
-            for row in db.execute(query, ('^Pegasus_*',)):
-                if pattern.search(row[0]):
+        sql = 'select * from sounds where file_name match ?'
+        terms = [self.id, self.search_name(), self.name.replace(' ', '_')]
+        for term in terms:
+            term = '{}*'.format(term)
+            for row in db.execute(sql, (term,)):
+                if self.sound_url(row[0]) not in self.sounds.values():
                     self.add_sound(row[0])
 
     def add_sound(self, name):
@@ -78,7 +73,7 @@ class Card:
                         type_str = '{} {}'.format(type, n)
 
                     if type_str not in self.sounds:
-                        self.sounds[type_str] = self.URL_BASE + name
+                        self.sounds[type_str] = self.sound_url(name)
                         return
                     n += 1
 
