@@ -3,6 +3,7 @@ import json
 import pytest
 import requests
 import urllib
+from unittest.mock import patch
 
 import hearthsounds
 
@@ -23,6 +24,7 @@ def results():
     yield results
 
 
+@patch('hearthsounds.current_app')
 @pytest.mark.parametrize('name,num', [
     ('zilliax', 5),
     ('arfus', 6),
@@ -34,8 +36,10 @@ def results():
     ('al akir', 3),
     ('dr boom', 5),
 ])
-def test_find_sounds(name, num, bucket, results):
+def test_find_sounds(current_app, name, num, bucket, results):
     """Verify that card search returns the correct amount of files."""
+    current_app.logger.info = print
+    current_app.logger.warning = print
 
     cards = hearthsounds.card_search(name, results, bucket)
 

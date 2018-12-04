@@ -3,3 +3,4 @@ env
 *.pyc
 *.swp
 config.yml
+cards.json

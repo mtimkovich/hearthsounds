@@ -70,12 +70,10 @@ class Card:
                         return
                     n += 1
 
-        # logging.warning('UNMATCHED: {}'.format(blob.name))
         current_app.logger.warning('UNMATCHED: {}'.format(blob.name))
 
     def skip(self):
         if self.type not in ['MINION'] or not self.collectable:
-            # logging.info('Skipping: {}'.format(self.name))
             current_app.logger.info('Skipping: {}'.format(self.name))
             return True
         return False
