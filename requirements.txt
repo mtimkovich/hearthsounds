@@ -17,6 +17,7 @@ protobuf==3.6.1
 py==1.7.0
 pyasn1==0.4.4
 pyasn1-modules==0.2.2
+pygtrie==2.3
 pytest==4.0.1
 pytz==2018.7
 requests==2.20.1

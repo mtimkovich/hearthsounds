@@ -20,22 +20,21 @@ class Card:
         self.type = data.get('type')
         self.collectable = data.get('collectible')
         self.rarity = data.get('rarity')
-        self.URL_BASE = 'https://https://storage.googleapis.com/hearthsounds/'
+        self.URL_BASE = 'https://storage.googleapis.com/hearthsounds/'
 
         self.sounds = {}
         self.SOUND_TYPES = [
             'play',
+            'stinger',
             'attack',
             'death',
             'trigger',
             'customsummon',
-            'stinger',
         ]
 
     def img(self):
         return ('https://media.services.zam.com/v1/media/byName/'
                 'hs/cards/enus/{}.png'.format(self.id))
-
 
     def search_name(self):
         """The name used when searching the sound files."""
@@ -130,14 +129,13 @@ def card_search(query, results, card_trie):
 
 
 def load_cards():
-    # with open('/home/protected/maxtimkovich.com/src/hearthsounds/cards.json') as f:
-    with open('cards.json') as f:
+    with open('/home/protected/maxtimkovich.com/src/hearthsounds/cards.json') as f:
         return json.load(f)
 
 
 def load_trie():
     card_trie = pygtrie.CharTrie()
-    with open('hs_storage.txt') as f:
+    with open('/home/protected/maxtimkovich.com/src/hearthsounds/hs_storage.txt') as f:
         for name in f:
             name = name.strip()
             card_trie[name] = name
@@ -155,7 +153,7 @@ def index():
     cards = []
 
     results = load_cards()
-    cardTrie = load_trie()
+    card_trie = load_trie()
 
     if q:
         cards = card_search(q, results, card_trie)
