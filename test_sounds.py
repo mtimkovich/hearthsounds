@@ -26,9 +26,9 @@ def test_find_sounds(current_app, name, num):
     current_app.logger.warning = print
 
     results = hearthsounds.load_cards()
-    card_trie = hearthsounds.load_trie()
+    db = hearthsounds.load_db()
 
-    cards = hearthsounds.card_search(name, results, card_trie)
+    cards = hearthsounds.card_search(name, results, db)
 
     assert len(cards) == 1
     assert len(cards[0].sounds) == num

@@ -5,13 +5,14 @@ from google.cloud import storage
 import json
 import logging
 import os
-import pygtrie
 import re
+import sqlite3
 import urllib.parse
 
 hearthsounds = Blueprint('hs', __name__, template_folder='templates',
                          static_folder='static', static_url_path='/static/hs')
 
+current_dir = os.path.dirname(os.path.realpath(__file__))
 
 class Card:
     def __init__(self, data):
@@ -40,25 +41,22 @@ class Card:
         """The name used when searching the sound files."""
         return self.name.replace(' ', '')
 
-    def find_sounds(self, card_trie):
+    def find_sounds(self, db):
+        # TODO: add some deduping.
+        query = 'select * from sounds where file_name match ?'
         prefixes = ['VO_{}_'.format(self.id), self.id, self.search_name()]
         for prefix in prefixes:
-            try:
-                for sound_file in card_trie.itervalues(prefix):
-                    self.add_sound(sound_file)
-            except KeyError:
-                pass
+            prefix = '^{}*'.format(prefix)
+            for row in db.execute(query, (prefix,)):
+                self.add_sound(row[0])
 
         # Legendary cards have stingers that accompany the voice line.
         # TODO: Search for group stingers e.g. Alliance.
         if self.rarity == 'LEGENDARY':
             pattern = re.compile(self.name.replace(' ', '_?'))
-            try:
-                for sound_file in card_trie.itervalues('Pegasus_'):
-                    if pattern.search(sound_file):
-                        self.add_sound(sound_file)
-            except KeyError:
-                pass
+            for row in db.execute(query, ('^Pegasus_*',)):
+                if pattern.search(row[0]):
+                    self.add_sound(row[0])
 
     def add_sound(self, name):
         """
@@ -110,7 +108,7 @@ def search_pattern(search):
     return re.compile(search, re.I)
 
 
-def card_search(query, results, card_trie):
+def card_search(query, results, db):
     cards = []
     pattern = search_pattern(query)
 
@@ -123,23 +121,19 @@ def card_search(query, results, card_trie):
         if c.skip():
             continue
 
-        c.find_sounds(card_trie)
+        c.find_sounds(db)
         cards.append(c)
     return cards
 
 
 def load_cards():
-    with open('/home/protected/maxtimkovich.com/src/hearthsounds/cards.json') as f:
+    with open(os.path.join(current_dir, 'cards.json')) as f:
         return json.load(f)
 
 
-def load_trie():
-    card_trie = pygtrie.CharTrie()
-    with open('/home/protected/maxtimkovich.com/src/hearthsounds/hs_storage.txt') as f:
-        for name in f:
-            name = name.strip()
-            card_trie[name] = name
-    return card_trie
+def load_db():
+    conn = sqlite3.connect(os.path.join(current_dir, 'hs_storage.db'))
+    return conn.cursor()
 
 
 @hearthsounds.route('/hearthsounds.py')
@@ -153,9 +147,10 @@ def index():
     cards = []
 
     results = load_cards()
-    card_trie = load_trie()
+    db = load_db()
 
     if q:
-        cards = card_search(q, results, card_trie)
+        cards = card_search(q, results, db)
+    db.close()
 
     return render_template('template.html', q=q, cards=cards)
