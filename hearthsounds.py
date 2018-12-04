@@ -5,6 +5,7 @@ from google.cloud import storage
 import json
 import logging
 import os
+import pygtrie
 import re
 import urllib.parse
 
@@ -19,6 +20,7 @@ class Card:
         self.type = data.get('type')
         self.collectable = data.get('collectible')
         self.rarity = data.get('rarity')
+        self.URL_BASE = 'https://https://storage.googleapis.com/hearthsounds/'
 
         self.sounds = {}
         self.SOUND_TYPES = [
@@ -31,30 +33,43 @@ class Card:
         ]
 
     def img(self):
-        return 'https://media.services.zam.com/v1/media/byName/hs/cards/enus/{}.png'.format(self.id)
+        return ('https://media.services.zam.com/v1/media/byName/'
+                'hs/cards/enus/{}.png'.format(self.id))
 
 
     def search_name(self):
         """The name used when searching the sound files."""
         return self.name.replace(' ', '')
 
-    def find_sounds(self, bucket):
+    def find_sounds(self, card_trie):
         prefixes = ['VO_{}_'.format(self.id), self.id, self.search_name()]
         for prefix in prefixes:
-            for blob in bucket.list_blobs(prefix=prefix):
-                self.add_sound(blob)
+            try:
+                for sound_file in card_trie.itervalues(prefix):
+                    self.add_sound(sound_file)
+            except KeyError:
+                pass
 
         # Legendary cards have stingers that accompany the voice line.
         # TODO: Search for group stingers e.g. Alliance.
         if self.rarity == 'LEGENDARY':
             pattern = re.compile(self.name.replace(' ', '_?'))
-            for blob in bucket.list_blobs(prefix='Pegasus_'):
-                if pattern.search(blob.name):
-                    self.add_sound(blob)
+            try:
+                for sound_file in card_trie.itervalues('Pegasus_'):
+                    if pattern.search(sound_file):
+                        self.add_sound(sound_file)
+            except KeyError:
+                pass
 
-    def add_sound(self, blob):
+    def add_sound(self, name):
+        """
+        Add sound file to sounds dictionary.
+
+        @param name: sound file to add to sounds.
+
+        """
         for type in self.SOUND_TYPES:
-            if type in blob.name.lower():
+            if type in name.lower():
                 if type in ['customsummon', 'stinger']:
                     type = 'play'
                 type = type.capitalize()
@@ -66,11 +81,11 @@ class Card:
                         type_str = '{} {}'.format(type, n)
 
                     if type_str not in self.sounds:
-                        self.sounds[type_str] = blob.public_url
+                        self.sounds[type_str] = self.URL_BASE + name
                         return
                     n += 1
 
-        current_app.logger.warning('UNMATCHED: {}'.format(blob.name))
+        current_app.logger.warning('UNMATCHED: {}'.format(name))
 
     def skip(self):
         if self.type not in ['MINION'] or not self.collectable:
@@ -79,7 +94,7 @@ class Card:
         return False
 
     def _sound_sort(self, d):
-        """Order the sounds Play > Attack > Trigger > Death and then numbers."""
+        """Order the sounds Play > Attack > Trigger > Death."""
         alphabet = 'PATD'
         try:
             index = alphabet.index(d[0][0])
@@ -96,7 +111,7 @@ def search_pattern(search):
     return re.compile(search, re.I)
 
 
-def card_search(query, results, bucket):
+def card_search(query, results, card_trie):
     cards = []
     pattern = search_pattern(query)
 
@@ -109,27 +124,40 @@ def card_search(query, results, bucket):
         if c.skip():
             continue
 
-        c.find_sounds(bucket)
+        c.find_sounds(card_trie)
         cards.append(c)
     return cards
+
+
+def load_cards():
+    # with open('/home/protected/maxtimkovich.com/src/hearthsounds/cards.json') as f:
+    with open('cards.json') as f:
+        return json.load(f)
+
+
+def load_trie():
+    card_trie = pygtrie.CharTrie()
+    with open('hs_storage.txt') as f:
+        for name in f:
+            name = name.strip()
+            card_trie[name] = name
+    return card_trie
+
 
 @hearthsounds.route('/hearthsounds.py')
 def dotpy():
     return redirect(url_for('hs.index', **request.args))
+
 
 @hearthsounds.route('/hearthsounds')
 def index():
     q = request.args.get('q', '')
     cards = []
 
-    # Setup gcloud client.
-    storage_client = storage.Client()
-    bucket = storage_client.get_bucket(current_app.config['HS_BUCKET'])
-
-    with open('/home/protected/maxtimkovich.com/src/hearthsounds/cards.json') as f:
-        results = json.load(f)
+    results = load_cards()
+    cardTrie = load_trie()
 
     if q:
-        cards = card_search(q, results, bucket)
+        cards = card_search(q, results, card_trie)
 
     return render_template('template.html', q=q, cards=cards)

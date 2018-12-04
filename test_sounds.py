@@ -8,22 +8,6 @@ from unittest.mock import patch
 import hearthsounds
 
 
-@pytest.fixture(scope='session')
-def bucket():
-    # Setup gcloud client.
-    storage_client = storage.Client()
-    bucket = storage_client.get_bucket('hearthsounds')
-
-    yield bucket
-
-@pytest.fixture(scope='session')
-def results():
-    with open('cards.json') as f:
-        results = json.load(f)
-
-    yield results
-
-
 @patch('hearthsounds.current_app')
 @pytest.mark.parametrize('name,num', [
     ('zilliax', 5),
@@ -36,12 +20,15 @@ def results():
     ('al akir', 3),
     ('dr boom', 5),
 ])
-def test_find_sounds(current_app, name, num, bucket, results):
+def test_find_sounds(current_app, name, num):
     """Verify that card search returns the correct amount of files."""
     current_app.logger.info = print
     current_app.logger.warning = print
 
-    cards = hearthsounds.card_search(name, results, bucket)
+    results = hearthsounds.load_cards()
+    card_trie = hearthsounds.load_trie()
+
+    cards = hearthsounds.card_search(name, results, card_trie)
 
     assert len(cards) == 1
     assert len(cards[0].sounds) == num
